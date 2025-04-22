@@ -21,11 +21,6 @@ import AITutorScreen from '../screens/AITutorScreen';
 import ReportDetailScreen from '../screens/ReportDetailScreen'; // <-- Ensure this is imported
 import JoinQuiz from '../screens/JoinQuiz'; // Added JoinQuiz screen
 import QuizAttemptScreen from '../screens/QuizAttemptScreen'; // <-- Add this import
-import ForgotPasswordScreen from '../screens/ForgotPasswordScreen'; // <-- Add this import
-import ResetPasswordScreen from '../screens/ResetPasswordScreen'; // <-- Add this import
-// Import other detail screens if needed (e.g., ReviewQuizScreen, QuizAttemptScreen)
-// import ReviewQuizScreen from '../screens/ReviewQuizScreen';
-// import QuizAttemptScreen from '../screens/QuizAttemptScreen';
 
 // Components
 import CustomDrawerContent from '../components/CustomDrawerContent';
@@ -233,20 +228,6 @@ function AuthStackNavigator() {
             <Stack.Screen 
                 name="Login" 
                 component={LoginScreen}
-                options={{
-                    gestureEnabled: false
-                }}
-            />
-            <Stack.Screen 
-                name="ForgotPassword" 
-                component={ForgotPasswordScreen}
-                options={{
-                    gestureEnabled: false
-                }}
-            />
-            <Stack.Screen 
-                name="ResetPassword" 
-                component={ResetPasswordScreen}
                 options={{
                     gestureEnabled: false
                 }}

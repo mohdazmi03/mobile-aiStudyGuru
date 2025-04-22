@@ -1,37 +1,4 @@
 import { supabase } from './supabase';
-import { PASSWORD_RESET_REDIRECT_URL } from './config';
-
-export const forgotPassword = async (email) => {
-    try {
-        // Use Supabase's built-in password reset
-        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: PASSWORD_RESET_REDIRECT_URL
-        });
-
-        if (error) throw error;
-
-        return {
-            message: 'If an account exists with this email, you will receive password reset instructions.',
-            exists: !!data
-        };
-    } catch (error) {
-        throw new Error(error.message || 'Failed to process password reset request');
-    }
-};
-
-export const resetPassword = async (newPassword) => {
-    try {
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword
-        });
-
-        if (error) throw error;
-
-        return { message: 'Password updated successfully.' };
-    } catch (error) {
-        throw new Error(error.message || 'Failed to reset password');
-    }
-};
 
 // Validate password strength
 export const validatePassword = (password) => {

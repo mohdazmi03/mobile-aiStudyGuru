@@ -129,7 +129,11 @@ const LoginScreen = () => {
     };
 
     const handleForgotPassword = () => {
-        navigation.navigate('ForgotPassword');
+        showCustomAlert({
+            type: 'info',
+            title: 'Password Reset',
+            message: 'Please contact support for password reset assistance.'
+        });
     };
 
     const handleLogin = async () => {

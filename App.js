@@ -12,7 +12,6 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from 'react-native-elements'; // Optional: Use RNE Theme
 import { ActivityIndicator, View, StyleSheet, LogBox } from 'react-native'; // For loading state
-import * as Linking from 'expo-linking';
 
 // STEP 4: Your App Components/Utils
 import AppNavigator from './src/navigation/AppNavigator';
@@ -27,16 +26,6 @@ LogBox.ignoreLogs([
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const prefix = Linking.createURL('/');
-
-  const linking = {
-    prefixes: [prefix, 'aistudyguru://', 'exp://'], // Add your app scheme
-    config: {
-      screens: {
-        ResetPassword: 'reset-password',
-      },
-    },
-  };
 
   useEffect(() => {
     // Check for an existing session on mount
@@ -57,26 +46,10 @@ export default function App() {
       }
     );
 
-    // Handle deep links
-    const handleDeepLink = ({ url }) => {
-      if (url && url.includes('type=recovery')) {
-        // Extract token if needed
-        navigation.navigate('ResetPassword');
-      }
-    };
-
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-
-    // Handle initial URL
-    Linking.getInitialURL().then(url => {
-      if (url) handleDeepLink({ url });
-    });
-
     // Cleanup listener on unmount
     return () => {
       console.log("Unsubscribing auth listener");
       authSubscriptionData?.subscription?.unsubscribe();
-      if (subscription) subscription.remove();
     };
   }, []); // Empty dependency array means this runs once on mount
 
@@ -94,7 +67,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppNavigator session={session} linking={linking} />
+        <AppNavigator session={session} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
