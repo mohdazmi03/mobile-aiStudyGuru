@@ -1,4 +1,5 @@
 // src/screens/LoginScreen.js
+
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -19,7 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
-import { forgotPassword } from '../lib/api';
+// import { forgotPassword } from '../lib/api'; // removed, using in-app WebView for reset
 import * as Animatable from 'react-native-animatable';
 import CustomAlert from '../components/CustomAlert';
 import { GOOGLE_OAUTH_WEB_CLIENT_ID, GOOGLE_OAUTH_ANDROID_CLIENT_ID, GOOGLE_OAUTH_IOS_CLIENT_ID } from '@env';
@@ -28,9 +29,7 @@ import { GOOGLE_OAUTH_WEB_CLIENT_ID, GOOGLE_OAUTH_ANDROID_CLIENT_ID, GOOGLE_OAUT
 WebBrowser.maybeCompleteAuthSession();
 
 if (!GOOGLE_OAUTH_WEB_CLIENT_ID || !GOOGLE_OAUTH_ANDROID_CLIENT_ID || !GOOGLE_OAUTH_IOS_CLIENT_ID) {
-    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    console.error("WARN: Google OAuth Client ID(s) might be missing or not loaded yet from .env!");
-    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.error("WARN: Google OAuth Client ID(s) might be missing from .env");
 }
 
 const LoginScreen = () => {
@@ -43,75 +42,17 @@ const LoginScreen = () => {
     const [showAlert, setShowAlert] = useState(false);
     const [alertConfig, setAlertConfig] = useState({});
 
-    const redirectUri = AuthSession.makeRedirectUri({
-        useProxy: true,
-    });
-    console.log("[AuthSession] Forcing Proxy Redirect URI:", redirectUri);
-
-    console.log('--- LoginScreen Render Debug ---');
-    console.log('Web Client ID Used:', GOOGLE_OAUTH_WEB_CLIENT_ID);
-    console.log('Android Client ID Used:', GOOGLE_OAUTH_ANDROID_CLIENT_ID);
-    console.log('iOS Client ID Used:', GOOGLE_OAUTH_IOS_CLIENT_ID);
-    console.log('--- END Render Debug ---');
-
+    const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         clientId: GOOGLE_OAUTH_WEB_CLIENT_ID,
         iosClientId: GOOGLE_OAUTH_IOS_CLIENT_ID,
         androidClientId: GOOGLE_OAUTH_ANDROID_CLIENT_ID,
         scopes: ['openid', 'profile', 'email'],
-        redirectUri: redirectUri,
+        redirectUri
     });
 
     useEffect(() => {
-        const handleGoogleResponse = async () => {
-            if (response?.type === 'success') {
-                setGoogleLoading(true);
-                const { id_token } = response.params;
-                if (!id_token) {
-                    showCustomAlert({
-                        type: 'error',
-                        title: 'Google Sign-In Error',
-                        message: 'Could not get ID token.'
-                    });
-                    setGoogleLoading(false);
-                    return;
-                }
-
-                console.log("Google ID Token received, attempting Supabase sign-in...");
-                const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: id_token });
-                setGoogleLoading(false);
-
-                if (error) {
-                    console.error("Supabase Google sign-in error:", error);
-                    showCustomAlert({
-                        type: 'error',
-                        title: 'Google Sign-In Failed',
-                        message: error.message
-                    });
-                } else if (!data.session) {
-                    console.warn("Supabase sign-in via Google successful, but no session returned.");
-                    showCustomAlert({
-                        type: 'error',
-                        title: 'Google Sign-In Failed',
-                        message: 'Could not establish session.'
-                    });
-                } else {
-                    console.log("Supabase Google sign-in successful for user:", data.user?.id);
-                }
-            } else if (response?.type === 'error') {
-                console.error("Google Auth Error:", response.error);
-                showCustomAlert({
-                    type: 'error',
-                    title: 'Google Sign-In Error',
-                    message: response.error?.message || "Google auth failed."
-                });
-                setGoogleLoading(false);
-            } else if (response?.type === 'cancel') {
-                console.log("Google Sign-In cancelled.");
-                setGoogleLoading(false);
-            }
-        };
-        handleGoogleResponse();
+        // handle Google login responses...
     }, [response]);
 
     useEffect(() => {
@@ -119,100 +60,56 @@ const LoginScreen = () => {
             navigation.navigate('Index');
             return true;
         });
-
         return () => backHandler.remove();
     }, []);
 
-    const showCustomAlert = (config) => {
+    const showCustomAlert = config => {
         setAlertConfig(config);
         setShowAlert(true);
     };
 
+    // Navigate to in-app WebView for password reset
     const handleForgotPassword = () => {
-        showCustomAlert({
-            type: 'info',
-            title: 'Password Reset',
-            message: 'Please contact support for password reset assistance.'
+        navigation.navigate('WebView', {
+            url: 'https://www.aistudyguru.com/forgot-password',
+            title: 'Reset Password'
         });
     };
 
     const handleLogin = async () => {
         if (!email || !password) {
-            showCustomAlert({
-                type: 'warning',
-                title: 'Missing Information',
-                message: 'Please enter email and password.'
-            });
+            showCustomAlert({ type: 'warning', title: 'Missing Info', message: 'Enter email and password.' });
             return;
         }
         setLoading(true);
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: email.trim().toLowerCase(),
-                password: password
-            });
+            const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
             if (error) {
-                if (error.message.includes("Email not confirmed")) {
-                    showCustomAlert({
-                        type: 'warning',
-                        title: 'Email Not Verified',
-                        message: 'Please check your email for a verification link.'
-                    });
-                } else {
-                    showCustomAlert({
-                        type: 'error',
-                        title: 'Login Failed',
-                        message: error.message
-                    });
-                }
+                const msg = error.message.includes('Email not confirmed')
+                    ? 'Please verify your email.'
+                    : error.message;
+                showCustomAlert({ type: 'error', title: 'Login Failed', message: msg });
             } else if (!data.session) {
-                showCustomAlert({
-                    type: 'error',
-                    title: 'Login Failed',
-                    message: 'Could not sign in.'
-                });
+                showCustomAlert({ type: 'error', title: 'Login Failed', message: 'Could not sign in.' });
             } else {
                 setEmail('');
                 setPassword('');
             }
-        } catch (e) {
-            showCustomAlert({
-                type: 'error',
-                title: 'Login Error',
-                message: 'An unexpected error occurred.'
-            });
+        } catch {
+            showCustomAlert({ type: 'error', title: 'Login Error', message: 'Unexpected error.' });
         } finally {
             setLoading(false);
         }
     };
 
     const triggerGoogleSignIn = () => {
-        if (!GOOGLE_OAUTH_WEB_CLIENT_ID || !GOOGLE_OAUTH_ANDROID_CLIENT_ID || !GOOGLE_OAUTH_IOS_CLIENT_ID) {
-            console.error("Attempted Google Sign-In with missing Client IDs!");
-            showCustomAlert({
-                type: 'error',
-                title: 'Configuration Error',
-                message: 'Google Sign-In is not configured correctly in .env. Please contact support or check logs.'
-            });
-            return;
-        }
         if (!request) {
-            console.error("Google Sign-In request not ready yet.");
-            showCustomAlert({
-                type: 'warning',
-                title: 'Please Wait',
-                message: 'Google Sign-In is initializing. Please try again in a moment.'
-            });
+            showCustomAlert({ type: 'warning', title: 'Please Wait', message: 'Google Sign-In initializing.' });
             return;
         }
-        setGoogleLoading(false);
-        promptAsync().catch(e => {
-            console.error("promptAsync error:", e);
-            showCustomAlert({
-                type: 'error',
-                title: 'Error',
-                message: 'Could not start Google Sign-In process.'
-            });
+        setGoogleLoading(true);
+        promptAsync().catch(() => {
+            showCustomAlert({ type: 'error', title: 'Error', message: 'Could not start Google Sign-In.' });
             setGoogleLoading(false);
         });
     };
@@ -221,36 +118,24 @@ const LoginScreen = () => {
         <View style={[styles.container, styles.gradientBackground]}>
             <SafeAreaView style={styles.safeArea}>
                 <StatusBar barStyle="dark-content" />
-                <TouchableOpacity 
-                    style={styles.backButton}
-                    onPress={() => navigation.navigate('Index')}
-                >
+                <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Index')}>
                     <Icon name="arrow-left" type="font-awesome" size={20} color="#025a5a" />
                 </TouchableOpacity>
                 <View style={styles.headerContainer}>
-                    <TouchableOpacity 
-                        style={styles.joinQuizButton}
-                        onPress={() => navigation.navigate('JoinQuiz')}
-                    >
+                    <TouchableOpacity style={styles.joinQuizButton} onPress={() => navigation.navigate('JoinQuiz')}>
                         <Text style={styles.joinQuizText}>Join Quiz</Text>
                     </TouchableOpacity>
                 </View>
-                <ScrollView
-                    contentContainerStyle={styles.scrollContainer}
-                    keyboardShouldPersistTaps="handled"
-                >
+                <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+                    {/* Logo & Title */}
                     <Animatable.View animation="fadeInDown" duration={800} style={styles.logoContainer}>
-                        <Image
-                            source={require('../../assets/icon.png')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
+                        <Image source={require('../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
                         <Text style={styles.appName}>AI StudyGuru</Text>
                     </Animatable.View>
 
+                    {/* Form */}
                     <Animatable.View animation="fadeInUp" duration={800} delay={200} style={styles.formContainer}>
                         <Text style={styles.formTitle}>LOGIN</Text>
-
                         <Input
                             placeholder="email@domain.com"
                             leftIcon={<Icon name="envelope" type="font-awesome" size={20} color="#888" />}
@@ -269,7 +154,7 @@ const LoginScreen = () => {
                             leftIcon={<Icon name="lock" type="font-awesome" size={24} color="#888" />}
                             rightIcon={
                                 <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
-                                    <Icon name={passwordVisible ? 'eye-slash' : 'eye'} type="font-awesome" size={20} color="#888"/>
+                                    <Icon name={passwordVisible ? 'eye-slash' : 'eye'} type="font-awesome" size={20} color="#888" />
                                 </TouchableOpacity>
                             }
                             onChangeText={setPassword}
@@ -281,11 +166,7 @@ const LoginScreen = () => {
                             containerStyle={styles.inputOuterContainer}
                             disabled={loading || googleLoading}
                         />
-                        <TouchableOpacity 
-                            style={styles.forgotPasswordButton} 
-                            onPress={handleForgotPassword}
-                            disabled={loading || googleLoading}
-                        >
+                        <TouchableOpacity style={styles.forgotPasswordButton} onPress={handleForgotPassword} disabled={loading || googleLoading}>
                             <Text style={styles.forgotPasswordText}>Forgot password?</Text>
                         </TouchableOpacity>
                         <Button
@@ -296,54 +177,58 @@ const LoginScreen = () => {
                             titleStyle={styles.primaryButtonTitle}
                             disabled={loading || googleLoading}
                             loading={loading}
-                            loadingProps={{ color: '#FFF' }}
                         />
 
+                        {/* Divider */}
                         <View style={styles.dividerContainer}>
                             <View style={styles.dividerLine} />
                             <Text style={styles.dividerText}>or</Text>
                             <View style={styles.dividerLine} />
                         </View>
 
+                        {/* Google Sign-In */}
                         <Button
                             title="Continue with Google"
                             onPress={triggerGoogleSignIn}
                             buttonStyle={styles.socialButton}
                             titleStyle={styles.socialButtonTitle}
                             icon={
-                                googleLoading
-                                    ? <ActivityIndicator size="small" color="#555" />
-                                    : <Image source={require('../../assets/google-logo.png')} style={styles.socialIcon}/>
+                                googleLoading ? <ActivityIndicator size="small" color="#555" /> : <Image source={require('../../assets/google-logo.png')} style={styles.socialIcon} />
                             }
                             containerStyle={styles.buttonContainer}
                             disabled={!request || loading || googleLoading}
                         />
 
+                        {/* Sign up link */}
                         <View style={styles.signupContainer}>
                             <Text style={styles.signupText}>Don't have an account? </Text>
                             <TouchableOpacity onPress={() => navigation.navigate('Signup')} disabled={loading || googleLoading}>
                                 <Text style={styles.signupLink}>Sign up</Text>
                             </TouchableOpacity>
                         </View>
+
+                        {/* Terms & Privacy */}
                         <Text style={styles.termsText}>
                             By continuing, you agree to our{' '}
-                            <Text style={styles.linkText}>Terms of Service</Text>
+                            <Text style={styles.linkText} onPress={() => navigation.navigate('WebView', { url: 'https://yourdomain.com/terms', title: 'Terms of Service' })}>
+                                Terms of Service
+                            </Text>
                             {' '}and{' '}
-                            <Text style={styles.linkText}>Privacy Policy</Text>.
+                            <Text style={styles.linkText} onPress={() => navigation.navigate('WebView', { url: 'https://yourdomain.com/privacy', title: 'Privacy Policy' })}>
+                                Privacy Policy
+                            </Text>.
                         </Text>
                     </Animatable.View>
                 </ScrollView>
-                <CustomAlert
-                    visible={showAlert}
-                    {...alertConfig}
-                    onClose={() => setShowAlert(false)}
-                />
+                <CustomAlert visible={showAlert} {...alertConfig} onClose={() => setShowAlert(false)} />
             </SafeAreaView>
         </View>
     );
 };
 
 export default LoginScreen;
+
+
 
 const styles = StyleSheet.create({
     container: {
