@@ -42,13 +42,24 @@ const LoginScreen = () => {
     const [showAlert, setShowAlert] = useState(false);
     const [alertConfig, setAlertConfig] = useState({});
 
-    const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+    const redirectUri = AuthSession.makeRedirectUri({
+        useProxy: true,
+        native: 'aistudyguru://',
+        scheme: "aistudyguru"
+    });
+    // Add this line to see the exact URI being used
+useEffect(() => {
+    console.log('Actual Redirect URI:', redirectUri);
+}, [redirectUri]);
+
+    console.log('Redirect URI:', redirectUri);
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-        clientId: GOOGLE_OAUTH_WEB_CLIENT_ID,
-        iosClientId: GOOGLE_OAUTH_IOS_CLIENT_ID,
+        webClientId: GOOGLE_OAUTH_WEB_CLIENT_ID, // Changed from expoClientId
         androidClientId: GOOGLE_OAUTH_ANDROID_CLIENT_ID,
+        iosClientId: GOOGLE_OAUTH_IOS_CLIENT_ID,
         scopes: ['openid', 'profile', 'email'],
-        redirectUri
+        redirectUri,
+        responseType: "id_token",
     });
 
     useEffect(() => {

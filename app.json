@@ -34,6 +34,9 @@
         "projectId": "457cbee2-3521-4bee-97de-8add9008bd45"
       }
     },
-    "owner": "mohdazmi03"
+    "owner": "mohdazmi03",
+    "plugins": [
+      "expo-build-properties"
+    ]
   }
 }
